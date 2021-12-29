@@ -154,10 +154,7 @@ def _auto_reconnect(f):
 
 
 class GcsChannel:
-    def __init__(self,
-                 redis_client=None,
-                 gcs_address: Optional[str] = None,
-                 aio: bool = False):
+    def __init__(self, redis_client=None, gcs_address: Optional[str] = None):
         if redis_client is None and gcs_address is None:
             raise ValueError(
                 "One of `redis_client` or `gcs_address` has to be set")
@@ -166,7 +163,7 @@ class GcsChannel:
                 "Only one of `redis_client` or `gcs_address` can be set")
         self._redis_client = redis_client
         self._gcs_address = gcs_address
-        self._aio = aio
+        self._channel = None
 
     def connect(self):
         if self._gcs_address is None:
@@ -174,7 +171,9 @@ class GcsChannel:
             gcs_address = get_gcs_address_from_redis(self._redis_client)
         else:
             gcs_address = self._gcs_address
-        self._channel = create_gcs_channel(gcs_address, self._aio)
+        self._channel = create_gcs_channel(gcs_address, aio=False)
+        # Wait until the channel is ready.
+        grpc.channel_ready_future(self._channel).result()
 
     def channel(self):
         return self._channel
